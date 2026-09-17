@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smith-Waterman Matrix Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --ink: #1C2321;
+    --muted: #6B7280;
+    --line: #D8D6CE;
+    --line-strong: #B7B4A8;
+    --accent: #B3801F;       /* traceback path */
+    --accent-soft: #F1E3C3;
+    --tie: #A8412B;          /* tie marker */
+    --tie-soft: #F5DDD5;
+    --zero: #EDEBE3;
+    --focus: #2A6F6F;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #14171A;
+      --surface: #1B1F23;
+      --ink: #ECE9E2;
+      --muted: #9CA3AF;
+      --line: #33383D;
+      --line-strong: #454C52;
+      --accent: #D9A63D;
+      --accent-soft: #3A3020;
+      --tie: #E08064;
+      --tie-soft: #3D2822;
+      --zero: #24282C;
+      --focus: #4FA8A8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171A;
+    --surface: #1B1F23;
+    --ink: #ECE9E2;
+    --muted: #9CA3AF;
+    --line: #33383D;
+    --line-strong: #454C52;
+    --accent: #D9A63D;
+    --accent-soft: #3A3020;
+    --tie: #E08064;
+    --tie-soft: #3D2822;
+    --zero: #24282C;
+    --focus: #4FA8A8;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.45;
+    padding: 28px 20px 60px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header.page {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+  }
+  header.page h1 {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13.5px;
+    max-width: 60ch;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .panel > h2 {
+    font-size: 12px;
+    text-transform: none;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-family: var(--font-mono);
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+  }
+  @media (max-width: 720px) {
+    .controls-grid { grid-template-columns: 1fr; }
+  }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .field input[type="text"] {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    letter-spacing: 0.03em;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .field input[type="text"]:focus, .field input[type="number"]:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .param-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 720px) {
+    .param-row { grid-template-columns: 1fr 1fr; }
+  }
+  .field input[type="number"] {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .gap-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+    font-family: var(--font-mono);
+  }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+  button.compute {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13.5px;
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button.compute:hover { opacity: 0.88; }
+  .error-msg {
+    color: var(--tie);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .stat .num {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .stat .lbl {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .legend span.swatch {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: -1px;
+    border: 1px solid var(--line-strong);
+  }
+
+  .matrix-scroll {
+    overflow: auto;
+    max-height: 560px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  table.matrix {
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+  table.matrix th, table.matrix td {
+    border: 1px solid var(--line);
+    min-width: 46px;
+    height: 34px;
+    text-align: center;
+    padding: 0 4px;
+  }
+  table.matrix thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 2;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  table.matrix thead th.seqhead {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  table.matrix tbody th {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 1;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  table.matrix thead th:first-child,
+  table.matrix tbody th {
+    z-index: 3;
+  }
+  table.matrix td.cell {
+    cursor: pointer;
+    background: var(--surface);
+  }
+  table.matrix td.cell:hover {
+    outline: 1.5px solid var(--focus);
+    outline-offset: -1.5px;
+  }
+  table.matrix td.zero-cell { background: var(--zero); color: var(--muted); }
+  table.matrix td.tie-cell { background: var(--tie-soft); }
+  table.matrix td.path-cell { background: var(--accent-soft); font-weight: 700; }
+  table.matrix td.path-cell.tie-cell {
+    background: linear-gradient(135deg, var(--accent-soft) 50%, var(--tie-soft) 50%);
+  }
+  table.matrix td.start-cell { box-shadow: inset 0 0 0 2px var(--accent); }
+  table.matrix td.selected-cell { box-shadow: inset 0 0 0 2px var(--focus); }
+  .tie-dot {
+    display: inline-block;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--tie);
+    margin-left: 2px;
+    vertical-align: 3px;
+  }
+
+  .below-matrix {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 18px;
+    margin-top: 18px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .below-matrix { grid-template-columns: 1fr; }
+  }
+
+  .cell-detail {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .cell-detail .coord {
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .cell-detail table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  .cell-detail table td, .cell-detail table th {
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+  }
+  .cell-detail table th { color: var(--muted); font-weight: 600; }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--zero);
+    color: var(--muted);
+  }
+  .pill.chosen { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .pill.tied { background: var(--tie-soft); color: var(--tie); }
+  .placeholder {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .alignment-card {
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--bg);
+  }
+  .alignment-card:last-child { margin-bottom: 0; }
+  .alignment-card .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-family: var(--font-sans);
+  }
+  .alignment-card .meta b { color: var(--ink); }
+  pre.align-block {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    white-space: pre;
+    overflow-x: auto;
+    margin: 0;
+    line-height: 1.6;
+  }
+  .align-line.seq1 { color: var(--ink); }
+  .align-line.mid { color: var(--focus); }
+  .align-line.seq2 { color: var(--ink); }
+  .tie-note {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--tie);
+    font-family: var(--font-sans);
+  }
+
+  footer.hint {
+    margin-top: 22px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>smith–waterman / matrix dashboard</h1>
+      <p>Local alignment with affine gaps. Click any cell to see its score breakdown and which cases tied for the max.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>sequences &amp; parameters</h2>
+    <div class="controls-grid">
+      <div class="field">
+        <label for="seq1">Sequence 1 (rows)</label>
+        <input type="text" id="seq1" value="TTCATA" maxlength="28">
+      </div>
+      <div class="field">
+        <label for="seq2">Sequence 2 (columns)</label>
+        <input type="text" id="seq2" value="TGCTCGTA" maxlength="28">
+      </div>
+    </div>
+    <div class="param-row">
+      <div class="field">
+        <label for="match">Match score</label>
+        <input type="number" id="match" value="5" step="1">
+      </div>
+      <div class="field">
+        <label for="mismatch">Mismatch score</label>
+        <input type="number" id="mismatch" value="-2" step="1">
+      </div>
+      <div class="field">
+        <label for="gapOpen">Gap open (first unit)</label>
+        <input type="number" id="gapOpen" value="6" step="1" min="0">
+      </div>
+      <div class="field">
+        <label for="gapExtend">Gap extend (per extra unit)</label>
+        <input type="number" id="gapExtend" value="2" step="1" min="0">
+      </div>
+    </div>
+    <div class="gap-note">gap of length n costs open + extend × (n − 1) &nbsp;→&nbsp; w(n) = <span id="gapFormulaPreview">6 + 2(n − 1)</span></div>
+    <div class="btn-row">
+      <button class="compute" id="computeBtn">Compute matrix</button>
+      <span class="error-msg" id="errorMsg"></span>
+    </div>
+  </section>
+
+  <section class="panel" id="resultsPanel" style="display:none;">
+    <h2>summary</h2>
+    <div class="stats-row">
+      <div class="stat"><div class="num" id="statScore">–</div><div class="lbl">top alignment score</div></div>
+      <div class="stat"><div class="num" id="statLen1">–</div><div class="lbl">seq 1 length</div></div>
+      <div class="stat"><div class="num" id="statLen2">–</div><div class="lbl">seq 2 length</div></div>
+      <div class="stat"><div class="num" id="statStarts">–</div><div class="lbl">cells tied for top score</div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="matrixPanel" style="display:none;">
+    <h2>H matrix (local alignment scores)</h2>
+    <div class="legend">
+      <div><span class="swatch" style="background:var(--zero)"></span>zero cell</div>
+      <div><span class="swatch" style="background:var(--tie-soft)"></span>tie between ≥2 cases</div>
+      <div><span class="swatch" style="background:var(--accent-soft)"></span>on a traceback path</div>
+      <div><span class="swatch" style="box-shadow:inset 0 0 0 2px var(--accent); background:var(--surface)"></span>alignment start (max cell)</div>
+      <div><span class="tie-dot" style="margin-left:0;"></span> = cell has a tie (click for detail)</div>
+    </div>
+    <div class="matrix-scroll">
+      <table class="matrix" id="matrixTable"></table>
+    </div>
+
+    <div class="below-matrix">
+      <div class="panel" style="margin:18px 0 0; padding:16px 18px;">
+        <h2>cell detail</h2>
+        <div id="cellDetail"><div class="placeholder">Click a cell in the matrix to see its score breakdown, including any cases that tied for the max.</div></div>
+      </div>
+      <div class="panel" style="margin:18px 0 0; padding:16px 18px;">
+        <h2>alignments found</h2>
+        <div id="alignmentsList"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="hint">Tie order when picking the traceback pointer: diagonal (aligned pair) → horizontal (gap in seq 1) → vertical (gap in seq 2) → zero. Sequences are capped at 28 characters so the matrix stays readable.</footer>
+</div>
+
+<script>
+(function () {
+  const seq1Input = document.getElementById('seq1');
+  const seq2Input = document.getElementById('seq2');
+  const matchInput = document.getElementById('match');
+  const mismatchInput = document.getElementById('mismatch');
+  const gapOpenInput = document.getElementById('gapOpen');
+  const gapExtendInput = document.getElementById('gapExtend');
+  const computeBtn = document.getElementById('computeBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const gapFormulaPreview = document.getElementById('gapFormulaPreview');
+
+  const resultsPanel = document.getElementById('resultsPanel');
+  const matrixPanel = document.getElementById('matrixPanel');
+  const matrixTable = document.getElementById('matrixTable');
+  const cellDetail = document.getElementById('cellDetail');
+  const alignmentsList = document.getElementById('alignmentsList');
+
+  const statScore = document.getElementById('statScore');
+  const statLen1 = document.getElementById('statLen1');
+  const statLen2 = document.getElementById('statLen2');
+  const statStarts = document.getElementById('statStarts');
+
+  let lastSelectedTd = null;
+  let cellData = null; // [i][j] -> {H,E,F,diag,ties:[{type,val}],primary:{type,val}}
+  let seq1 = '', seq2 = '';
+
+  function updateGapPreview() {
+    const go = Number(gapOpenInput.value);
+    const ge = Number(gapExtendInput.value);
+    gapFormulaPreview.textContent = go + ' + ' + ge + '(n − 1)';
+  }
+  [gapOpenInput, gapExtendInput].forEach(el => el.addEventListener('input', updateGapPreview));
+  updateGapPreview();
+
+  function sanitizeSeq(raw) {
+    return raw.toUpperCase().replace(/[^A-Z]/g, '');
+  }
+
+  function computeMatrices(s1, s2, match, mismatch, gapOpen, gapExtend) {
+    const n = s1.length, m = s2.length;
+    const NEG = -Infinity;
+
+    // S is the displayed Smith–Waterman local score matrix.
+    // D = alignment ends with an aligned residue pair.
+    // E = alignment ends with a horizontal gap (gap in sequence 1).
+    // F = alignment ends with a vertical gap (gap in sequence 2).
+    // Keeping these states separate is required for a true affine gap model.
+    const S = Array.from({length: n+1}, () => new Array(m+1).fill(0));
+    const D = Array.from({length: n+1}, () => new Array(m+1).fill(NEG));
+    const E = Array.from({length: n+1}, () => new Array(m+1).fill(NEG));
+    const F = Array.from({length: n+1}, () => new Array(m+1).fill(NEG));
+    const data = Array.from({length: n+1}, () => new Array(m+1).fill(null));
+
+    const statePriority = ['diag', 'horiz', 'vert', 'zero'];
+
+    for (let i = 1; i <= n; i++) {
+      for (let j = 1; j <= m; j++) {
+        const pairScore = (s1[i-1] === s2[j-1]) ? match : mismatch;
+
+        // D may follow any completed state, or start a new local alignment at 0.
+        const diagPrevCandidates = [
+          {type:'diag', val:D[i-1][j-1]},
+          {type:'horiz', val:E[i-1][j-1]},
+          {type:'vert', val:F[i-1][j-1]},
+          {type:'zero', val:0}
+        ];
+        const bestDiagPrev = Math.max(...diagPrevCandidates.map(x => x.val));
+        const diagPrevTies = diagPrevCandidates.filter(x => x.val === bestDiagPrev);
+        D[i][j] = bestDiagPrev + pairScore;
+
+        // Affine gaps: w(n) = open + extend*(n-1).
+        // A horizontal gap can open only from D or extend an existing horizontal gap.
+        const eFromOpen = D[i][j-1] === NEG ? NEG : D[i][j-1] - gapOpen;
+        const eFromExt  = E[i][j-1] === NEG ? NEG : E[i][j-1] - gapExtend;
+        E[i][j] = Math.max(eFromOpen, eFromExt);
+        const ePrev = eFromOpen >= eFromExt ? 'diag' : 'horiz';
+
+        // A vertical gap can open only from D or extend an existing vertical gap.
+        const fFromOpen = D[i-1][j] === NEG ? NEG : D[i-1][j] - gapOpen;
+        const fFromExt  = F[i-1][j] === NEG ? NEG : F[i-1][j] - gapExtend;
+        F[i][j] = Math.max(fFromOpen, fFromExt);
+        const fPrev = fFromOpen >= fFromExt ? 'diag' : 'vert';
+
+        // Local boundary/recurrence: four cases, including restart at zero.
+        const candidates = [
+          {type:'diag',  val:D[i][j]},
+          {type:'horiz', val:E[i][j]},
+          {type:'vert',  val:F[i][j]},
+          {type:'zero',  val:0}
+        ];
+        const maxVal = Math.max(...candidates.map(c => c.val));
+        S[i][j] = maxVal;
+        const ties = candidates.filter(c => c.val === maxVal);
+        const primary = ties[0]; // order above enforces diagonal > horizontal > vertical > zero
+
+        data[i][j] = {
+          H: maxVal,
+          diag: D[i][j],
+          horizOpen: eFromOpen, horizExt: eFromExt, horiz: E[i][j],
+          vertOpen: fFromOpen, vertExt: fFromExt, vert: F[i][j],
+          ties, primary,
+          diagPrevTies, ePrev, fPrev
+        };
+      }
+    }
+    return {H:S, D, E, F, data, n, m};
+  }
+
+  function traceback(mats, s1, s2, startI, startJ) {
+    const {H:S, D, E, F, data} = mats;
+    let i = startI, j = startJ;
+    let state = data[i][j].primary.type;
+    const steps = [];
+
+    while (i > 0 && j > 0 && state !== 'zero') {
+      const cell = data[i][j];
+      const tieAtDisplayedCell = cell.ties.length > 1;
+
+      if (state === 'diag') {
+        steps.push({i, j, dir:'diag', tie:tieAtDisplayedCell, score:S[i][j]});
+        const prev = cell.diagPrevTies[0].type; // diag > horiz > vert > zero
+        i--; j--; state = prev;
+      } else if (state === 'horiz') {
+        steps.push({i, j, dir:'horiz', tie:tieAtDisplayedCell, score:S[i][j]});
+        state = cell.ePrev;
+        j--;
+      } else if (state === 'vert') {
+        steps.push({i, j, dir:'vert', tie:tieAtDisplayedCell, score:S[i][j]});
+        state = cell.fPrev;
+        i--;
+      } else {
+        break;
+      }
+    }
+
+    let a1 = '', a2 = '', mid = '';
+    for (const st of steps) {
+      if (st.dir === 'diag') {
+        const c1 = s1[st.i - 1], c2 = s2[st.j - 1];
+        a1 += c1; a2 += c2; mid += (c1 === c2) ? '|' : '.';
+      } else if (st.dir === 'horiz') {
+        a1 += '-'; a2 += s2[st.j - 1]; mid += ' ';
+      } else if (st.dir === 'vert') {
+        a1 += s1[st.i - 1]; a2 += '-'; mid += ' ';
+      }
+    }
+    a1 = a1.split('').reverse().join('');
+    a2 = a2.split('').reverse().join('');
+    mid = mid.split('').reverse().join('');
+
+    const xPositions = steps.filter(st => st.dir === 'diag' || st.dir === 'vert').map(st => st.i);
+    const yPositions = steps.filter(st => st.dir === 'diag' || st.dir === 'horiz').map(st => st.j);
+    const xStart = xPositions.length ? Math.min(...xPositions) : null;
+    const xEnd   = xPositions.length ? Math.max(...xPositions) : null;
+    const yStart = yPositions.length ? Math.min(...yPositions) : null;
+    const yEnd   = yPositions.length ? Math.max(...yPositions) : null;
+
+    return {
+      a1, a2, mid, steps, startI, startJ,
+      xStart, xEnd, yStart, yEnd,
+      score: S[startI][startJ],
+      tieCount: steps.filter(s => s.tie).length
+    };
+  }
+
+  function runCompute() {
+    errorMsg.textContent = '';
+    const s1 = sanitizeSeq(seq1Input.value);
+    const s2 = sanitizeSeq(seq2Input.value);
+    const match = Number(matchInput.value);
+    const mismatch = Number(mismatchInput.value);
+    const gapOpen = Number(gapOpenInput.value);
+    const gapExtend = Number(gapExtendInput.value);
+
+    if (!s1.length || !s2.length) {
+      errorMsg.textContent = 'Enter letters (A–Z) for both sequences.';
+      return;
+    }
+    if (s1.length > 28 || s2.length > 28) {
+      errorMsg.textContent = 'Sequences capped at 28 characters each.';
+      return;
+    }
+    if ([match, mismatch, gapOpen, gapExtend].some(v => Number.isNaN(v))) {
+      errorMsg.textContent = 'All scoring parameters must be numbers.';
+      return;
+    }
+
+    seq1 = s1; seq2 = s2;
+    const mats = computeMatrices(s1, s2, match, mismatch, gapOpen, gapExtend);
+    cellData = mats;
+    lastSelectedTd = null;
+
+    renderMatrix(mats, s1, s2);
+    renderSummaryAndAlignments(mats, s1, s2);
+
+    resultsPanel.style.display = '';
+    matrixPanel.style.display = '';
+  }
+
+  function renderMatrix(mats, s1, s2) {
+    const {H, data, n, m} = mats;
+
+    // find global max (excluding forced consideration of boundary, which is always 0)
+    let maxScore = 0;
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= m; j++) if (H[i][j] > maxScore) maxScore = H[i][j];
+
+    // compute one traceback per max cell (cap to avoid explosion)
+    const maxCells = [];
+    for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++) if (H[i][j] === maxScore && maxScore > 0) maxCells.push([i,j]);
+    const cappedCells = maxCells.slice(0, 12);
+    const alignments = cappedCells.map(([i,j]) => traceback(mats, s1, s2, i, j));
+
+    // mark path cells + start cells for rendering
+    const pathSet = new Set();
+    const startSet = new Set();
+    alignments.forEach(al => {
+      startSet.add(al.startI + ',' + al.startJ);
+      al.steps.forEach(st => pathSet.add(st.i + ',' + st.j));
+    });
+
+    let html = '<thead><tr><th></th><th></th>';
+    for (let j = 0; j < m; j++) html += '<th class="seqhead">' + s2[j] + '</th>';
+    html += '</tr><tr><th></th><th>0</th>';
+    for (let j = 1; j <= m; j++) html += '<th>' + j + '</th>';
+    html += '</tr></thead><tbody>';
+
+    for (let i = 0; i <= n; i++) {
+      html += '<tr>';
+      if (i === 0) {
+        html += '<th></th><th>0</th>';
+      } else {
+        html += '<th class="seqhead">' + s1[i-1] + '</th><th>' + i + '</th>';
+      }
+      for (let j = 0; j <= m; j++) {
+        if (i === 0 || j === 0) {
+          html += '<td class="cell zero-cell" data-i="' + i + '" data-j="' + j + '">0</td>';
+          continue;
+        }
+        const val = H[i][j];
+        const cell = data[i][j];
+        const isTie = cell.ties.length > 1;
+        const key = i + ',' + j;
+        let cls = 'cell';
+        if (val === 0) cls += ' zero-cell';
+        if (isTie) cls += ' tie-cell';
+        if (pathSet.has(key)) cls += ' path-cell';
+        if (startSet.has(key)) cls += ' start-cell';
+        html += '<td class="' + cls + '" data-i="' + i + '" data-j="' + j + '">' + val + (isTie ? '<span class="tie-dot"></span>' : '') + '</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody>';
+    matrixTable.innerHTML = html;
+
+    matrixTable.querySelectorAll('td.cell').forEach(td => {
+      td.addEventListener('click', () => {
+        const i = Number(td.dataset.i), j = Number(td.dataset.j);
+        if (lastSelectedTd) lastSelectedTd.classList.remove('selected-cell');
+        td.classList.add('selected-cell');
+        lastSelectedTd = td;
+        showCellDetail(i, j);
+      });
+    });
+
+    matrixTable._maxScore = maxScore;
+    matrixTable._alignments = alignments;
+  }
+
+  function dirLabel(type) {
+    return {diag: 'diagonal (aligned pair)', horiz: 'horizontal (gap in seq 1)', vert: 'vertical (gap in seq 2)', zero: 'zero (restart)'}[type];
+  }
+
+  function showCellDetail(i, j) {
+    if (i === 0 || j === 0) {
+      cellDetail.innerHTML = '<div class="coord">Cell (' + i + ', ' + j + ')</div><div class="placeholder">Boundary cell — fixed at 0 by initialization (S(i,0) = 0, S(0,j) = 0), not computed from the recurrence.</div>';
+      return;
+    }
+    const cell = cellData.data[i][j];
+    const rows = cell.ties.length > 1
+      ? cell.ties.map(t => t.type).join(', ')
+      : null;
+
+    let rowsHtml = '';
+    const order = [
+      {type: 'diag', label: 'diagonal', val: cell.diag},
+      {type: 'horiz', label: 'horizontal', val: cell.horiz},
+      {type: 'vert', label: 'vertical', val: cell.vert},
+      {type: 'zero', label: 'zero', val: 0}
+    ];
+    order.forEach(o => {
+      const tied = cell.ties.some(t => t.type === o.type);
+      const chosen = cell.primary.type === o.type;
+      let pill = '';
+      if (chosen) pill = '<span class="pill chosen">chosen</span>';
+      else if (tied) pill = '<span class="pill tied">tied, not chosen</span>';
+      rowsHtml += '<tr><td>' + o.label + '</td><td>' + o.val + '</td><td>' + pill + '</td></tr>';
+    });
+
+    let gapDetail = '';
+    if (cell.horiz > -Infinity || cell.vert > -Infinity) {
+      gapDetail = '<table><tr><th></th><th>open</th><th>extend</th></tr>' +
+        '<tr><td>horizontal (E)</td><td>' + cell.horizOpen + '</td><td>' + (cell.horizExt === -Infinity ? '—' : cell.horizExt) + '</td></tr>' +
+        '<tr><td>vertical (F)</td><td>' + cell.vertOpen + '</td><td>' + (cell.vertExt === -Infinity ? '—' : cell.vertExt) + '</td></tr></table>';
+    }
+
+    cellDetail.innerHTML =
+      '<div class="coord">Cell (' + i + ', ' + j + ') · S(' + seq1[i-1] + ', ' + seq2[j-1] + ') = ' + cell.H + '</div>' +
+      '<table><tr><th>case</th><th>score</th><th></th></tr>' + rowsHtml + '</table>' +
+      (cell.ties.length > 1 ? '<div class="tie-note">Tie between: ' + cell.ties.map(t => dirLabel(t.type)).join(' · ') + ' — priority picks <b>' + dirLabel(cell.primary.type) + '</b>.</div>' : '') +
+      '<div style="margin-top:10px; color:var(--muted); font-size:11.5px;">Gap sub-scores (open vs. extend component):</div>' + gapDetail;
+  }
+
+  function renderSummaryAndAlignments(mats, s1, s2) {
+    const maxScore = matrixTable._maxScore;
+    const alignments = matrixTable._alignments;
+
+    statScore.textContent = maxScore;
+    statLen1.textContent = s1.length;
+    statLen2.textContent = s2.length;
+    statStarts.textContent = alignments.length + (alignments.length === 12 ? '+' : '');
+
+    if (maxScore === 0) {
+      alignmentsList.innerHTML = '<div class="placeholder">No positive-scoring local alignment exists with these parameters — every cell resolves to 0.</div>';
+      return;
+    }
+
+    let html = '';
+    alignments.forEach((al, idx) => {
+      html += '<div class="alignment-card">' +
+        '<div class="meta"><span>alignment ' + (idx+1) + ' · x[' + al.xStart + '..' + al.xEnd + '] · y[' + al.yStart + '..' + al.yEnd + ']</span><b>score ' + al.score + '</b></div>' +
+        '<pre class="align-block">' +
+        '<span class="align-line seq1">' + escapeHtml(al.a1) + '</span>\n' +
+        '<span class="align-line mid">' + escapeHtml(al.mid) + '</span>\n' +
+        '<span class="align-line seq2">' + escapeHtml(al.a2) + '</span>' +
+        '</pre>' +
+        (al.tieCount > 0 ? '<div class="tie-note">' + al.tieCount + ' cell(s) along this path had a tie among the recurrence cases (marked with a dot on the matrix).</div>' : '') +
+        '</div>';
+    });
+    if (matrixTable._maxScore && matrixTable._alignments.length === 12) {
+      html += '<div class="placeholder" style="margin-top:6px;">Showing the first 12 tied top-scoring start cells.</div>';
+    }
+    alignmentsList.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  computeBtn.addEventListener('click', runCompute);
+  [seq1Input, seq2Input, matchInput, mismatchInput, gapOpenInput, gapExtendInput].forEach(el => {
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCompute(); });
+  });
+
+  // initial run with defaults
+  runCompute();
+})();
+</script>
+</body>
+</html>
