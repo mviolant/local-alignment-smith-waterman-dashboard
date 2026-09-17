@@ -490,7 +490,7 @@
   updateGapPreview();
 
   function sanitizeSeq(raw) {
-    return raw.toUpperCase().replace(/[^A-Z]/g, '');
+  return raw.trim().toUpperCase();
   }
 
   function computeMatrices(s1, s2, match, mismatch, gapOpen, gapExtend) {
@@ -633,6 +633,12 @@
       errorMsg.textContent = 'Enter letters (A–Z) for both sequences.';
       return;
     }
+
+    if (!/^[A-Z]+$/.test(s1) || !/^[A-Z]+$/.test(s2)) {
+      errorMsg.textContent = 'Invalid sequence. Use letters A–Z only.';
+      return;
+    }
+
     if (s1.length > 28 || s2.length > 28) {
       errorMsg.textContent = 'Sequences capped at 28 characters each.';
       return;
