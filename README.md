@@ -56,3 +56,48 @@ Conceptually:
 
 ```text
 gap cost = gap opening penalty + gap extension penalty × additional gap positions
+```
+
+## Example Comparison
+
+Consider:
+
+```text
+Sequence X: TTCATA
+Sequence Y: TGCTCGTA
+
+Match: +5
+Mismatch: -2
+Gap: -6
+```
+
+A local alignment identifies the highest-scoring matching subsequences rather than requiring the complete sequences to align.
+
+Example optimal local region:
+
+TCATA
+TCGTA
+
+with coordinates corresponding to the aligned portions of the original sequences.
+
+## Technologies
+
+- HTML
+- CSS
+- JavaScript
+- Git / GitHub
+- GitHub Pages
+
+## Project Context
+
+Developed as part of graduate-level coursework in **Bioinformatics and Genomics at UNC Charlotte.**
+
+The dashboard is intended as an educational visualization of pairwise sequence alignment rather than a replacement for production bioinformatics software such as BLAST, EMBOSS Water, or other optimized alignment tools.
+
+## Author
+
+**Maria Violante**  
+M.S. Bioinformatics Candidate  
+UNC Charlotte
+
+GitHub: https://github.com/mviolant
