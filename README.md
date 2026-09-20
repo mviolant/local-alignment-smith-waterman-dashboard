@@ -73,7 +73,7 @@ Gap: -6
 
 A local alignment identifies the highest-scoring matching subsequences rather than requiring the complete sequences to align.
 
-Example optimal local region:
+## Example optimal local region:
 
 TCATA
 TCGTA
