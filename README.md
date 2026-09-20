@@ -75,8 +75,10 @@ A local alignment identifies the highest-scoring matching subsequences rather th
 
 ## Example optimal local region:
 
+```text
 TCATA
 TCGTA
+```
 
 with coordinates corresponding to the aligned portions of the original sequences.
 
